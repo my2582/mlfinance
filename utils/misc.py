@@ -1,7 +1,8 @@
 import pandas as pd
 
-def get_letter(i, letter='A'):
-    """Returns the alphabet that is `i`-th apart from `letter`.
+def get_excel_column_name(i, letter='A'):
+    """Returns the alphabet that is `i`-th apart from `letter`, which is compatible with the column name in Excel.
+    e.g.: get_letter(26) returns 'AA'
     
     Parameters
     ----------
@@ -11,7 +12,10 @@ def get_letter(i, letter='A'):
     i : int
         `i`-th apart from `letter.
     """
-    return chr(ord(letter) + i)
+    if i <= 25:
+        return chr(ord(letter)+i)
+    else:
+        return get_excel_column_name((i // 26)-1) + get_excel_column_name(i % 26)
 
 
 def get_last_bday(date_from=None, holidays=[''], weekmask='Mon Tue Wed Thu Fri'):
