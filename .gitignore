@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ignore any directory named huge
+**/huge/
+
+# VS Code directories
+/.vscode
