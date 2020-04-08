@@ -1,0 +1,12 @@
+cookiecutter==1.7.0
+importlib-metadata==1.6.0
+jupyterlab==2.0.1
+knoema==1.0.23b1
+mkl-fft==1.0.15
+mkl-random==1.1.0
+mkl-service==2.3.0
+pipdeptree==0.13.2
+pyOpenSSL==19.1.0
+PySocks==1.7.1
+scikit-learn==0.22.2.post1
+wheel==0.34.2
