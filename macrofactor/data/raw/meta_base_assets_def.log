@@ -1,10 +1,11 @@
 ﻿,,,"Sources","Proxy for older years",,
 "Base asset","Acronym","Indices","Bloomberg","GFD",,"Remarks"
 "Equities","DMEQ","MSCI World in USD","MXWO","_SPXD","S&P 500/Cowles Composite Price Index (w/GFD extension)",
-"Treasuries","GLT","Bloomberg Barclays U.S. Treasury","LUATTRUU","TRUSG10M","GFD Indices USA 10-year Government Bond Total Return Index",
+"Treasuries","GLT","Bloomberg Barclays U.S. Treasury","LUATTRUU","TRUSG10M","GFD Indices USA 10-year Government Bond Total Return Index","Wtd Avg Maturity of 8.6 yrs"
 "Credit","CRE","Bloomberg Barclays U.S. Credit Baa index","LUBATRUU","_DJCBPD","Dow Jones Corporate Bond Price Index (new)","Total return index"
 ,,"Bloomberg Barclays U.S. Credit Aaa index","LU3ATRUU","TRUSACOM","GFD Indices USA Total Return AAA Corporate Bond Index",
-"Inflation-Linked Bonds","ILB","Bloomberg Barclays U.S. TIPS","LBUTTRUU",,,
+"Inflation-Linked Bonds","ILB","Bloomberg Barclays U.S. TIPS","LBUTTRUU",,,"Wtd Avg Maturity of 8.6 yrs"
+,,,,"IGUSA10D","USA 10-year Bond Constant Maturity Yield","Nominal yield"
 ,,"US CPI All Item","CPI INDX","CPUSAM","United States BLS Consumer Price Index Inflation Rate NSA","The newer is SA, but the other is NSA"
 "Gold","GOLD","Gold (USD/ounce)","XAU","__XAU_D","Gold Bullion Price-New York (US$/Ounce)",
 "Industrial Metals","INM","S&P GSCI Industrial Metals","SPGSIN","CMWXMMM","World Bank Metals and Minerals Commodity Price Index",
@@ -26,5 +27,5 @@
 ,,,"USDAUD","USDAUD",,
 ,,"safe-haven currencies","CHFUSD","CHFUSD",,
 ,,,"USDAUD","USDJPY",,"Since Jan 1987"
-"*Risk free","RF","USD Libor 1 month",,"ITUSA3CMD","USA Government 3-Month T-Bills Constant Maturity Yield","Since 1920"
+"*Risk free","RF","US 3-Month T-Bills","USGG3M","ITUSA3CMD","USA Government 3-Month T-Bills Constant Maturity Yield","Since 1920"
 ,,,,"IDUSAD","USA Federal Reserve Bank Discount Rate","Since 1914"
