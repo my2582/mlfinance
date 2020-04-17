@@ -1,6 +1,6 @@
 ﻿,,,"Sources","Proxy for older years",,
 "Base asset","Acronym","Indices","Bloomberg","GFD",,"Remarks"
-"Equities","WEQ","MSCI World in USD","MXWO","_SPXD","S&P 500/Cowles Composite Price Index (w/GFD extension)",
+"Equities","DMEQ","MSCI World in USD","MXWO","_SPXD","S&P 500/Cowles Composite Price Index (w/GFD extension)",
 "Treasuries","GLT","Bloomberg Barclays U.S. Treasury","LUATTRUU","TRUSG10M","GFD Indices USA 10-year Government Bond Total Return Index",
 "Credit","CRE","Bloomberg Barclays U.S. Credit Baa index","LUBATRUU","_DJCBPD","Dow Jones Corporate Bond Price Index (new)","Total return index"
 ,,"Bloomberg Barclays U.S. Credit Aaa index","LU3ATRUU","TRUSACOM","GFD Indices USA Total Return AAA Corporate Bond Index",
