@@ -6,7 +6,7 @@ class EquityUniverse(object):
     """Loads a broader universe and screens out with filtering conditions.
     """
 
-    def __init__(self, csv_name, min_market_cap=200):
+    def __init__(self, csv_name, min_market_cap=500, min_revenue=100):
         """Sets a path at which a csv-format broader universe file exists.
 
         Parameters
@@ -15,12 +15,15 @@ class EquityUniverse(object):
             A csv file name from which a raw universe file is loaded.
 
         min_market_cap: int
-            The minimum market cap in USD million.
+            The minimum market capitalization in USD million.
+
+        min_revenue: int
+            The minimum revenue in USD million.
         """
         self.universe = pd.read_csv(csv_name,
                                 header=1,
                                 names=[
-                                    'Identifier', 'Name', 'Revenue', 'Company Type',
+                                    'Identifier', 'Name', 'Market Cap', 'Revenue', 'Company Type',
                                     'Business Description', 'FactSet Industry',
                                     'Crunchbase Category(BETA)',
                                     'Crunchbase Rank(BETA)', 'Ultimate Parent Name',
@@ -34,10 +37,10 @@ class EquityUniverse(object):
         self.universe.loc[:, 'Fiscal Year End'] = pd.to_datetime(self.universe.loc[:, 'Fiscal Year End'], errors='coerce')
 
         # Set the minimum market cap.
-        self.min_market_cap = min_market_cap
+        self.min_revenue = min_revenue
 
         # Drop rows not satisfying the minimum.
-        self.universe = self.universe.loc[self.universe.loc[:, 'Revenue'] >= min_market_cap, :]
+        self.universe = self.universe.loc[(self.universe.loc[:, 'Market Cap'] >= min_market_cap) & (self.universe.loc[:, 'Revenue'] >= min_revenue), :]
         self.universe = self.universe.reset_index(drop = True)
 
     def save(self, name='./dataset/universe/feather/eqy_universe_gt50mm.feather', pickle=True):
