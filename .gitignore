@@ -63,6 +63,10 @@ target/
 *.db
 *.rdb
 
+# Raw data, which might be too large for GitHub.
+*.xlsx
+*.xls
+
 # Pycharm
 .idea
 

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import re
 import itertools
@@ -33,26 +34,56 @@ class DataCleaner:
         Parameters:
         n_splits: integer
             The number of words splitted with `sep`.
-        
+
         text: str
             A string possibly including `sep`
-        
-        sep: str
+
+        sep: str or List
             A separator to split `text`
+            e.g. sep = [' - ', ' = '] or str = ' - '
+        '''
+        # If multiple column separators are passed in List type,
+        # a separator splitting a row the most will be chosen through `best_sep_idx`.
+        if isinstance(sep, List):
+            best_sep_idx = np.argmax([len(self._splitter(n_splits=n_splits, text=text, sep=sep)) for s in sep])
+            best_sep = sep[best_sep_idx]
+            return self._splitter(n_splits, text, sep=best_sep)
+        else:
+            return self._splitter(n_splits, text, sep=sep)
+    
+    def _splitter(self, n_splits: int, text: str, sep = ' - '):
+        '''
+        Returns a list of strings separated by `sep` in `text`, but only first `n_splits`.
+        The remaining parts will be the last element of a returned-list.
+        Functions as the same as splitter(), but `sep` only accepts string type.
+        e.g. text = ['Don - CEO - Director']
+        splitter(2, text)
+        >> ['Don', 'CEO - Director']
+
+        Parameters:
+        n_splits: integer
+            The number of words splitted with `sep`.
+
+        text: str
+            A string possibly including `sep`
+
+        sep: str 
+            A separator to split `text`
+            e.g. str = ' - '
         '''
         s_text = text.split(sep)
         n_splits = min(len(s_text), n_splits)
-        
         result = [s_text[i] for i in range(n_splits-1)]
         remaining_text = s_text[n_splits-1:]
         result.append(sep.join(remaining_text))
-        
+
         return result
 
     def convert_multilines(self, text: str, col_nm=['col1', 'col2'], ret_type='df', col_sep=' - ', row_sep='\n'):
         '''
         Returns either a DataFrame or dictionary instance where columns are extracted by splitting with `col_sep` and each row is separated by `row_sep`.
-        Any empty row will be dropped.
+        Any empty row will be dropped. `col_sep` may have multiple separators, separated by '|'. e.g.: col_sep = ' - | = '. In this case, a separator splitting a row the most will be chosen.
+        
         e.g.
             text = '\n\nSunny Sanyal - President - Chief Executive Officer\n\n\nSam Maheshwari\nClarence Verhoef - Retiring Chief Financial Officer\nHoward Goldman - Director of Investor Relations\n'
             convert_multilines(text, col_nm=['name', 'title'], ret_type='dic')
@@ -71,17 +102,38 @@ class DataCleaner:
 
         col_nm: list
             A list of column names. Default is ['col1', 'col2']
-        
+
         ret_type: {'df'|'dic}
             Either 'df' or 'dic', which indicates a return type. A DataFrame instance is returned if 'df', else a dictionary instance.
+            
+        col_sep: str or List
+            A string of column separators, possibly containing multiple ones.
+            e.g. col_sep = ' - ' or col_sep = [' - ', ' = ']
+            
+        row_sep: str
+            A row separator to split `text` into multiple rows if needed.
         '''
+        
+        # In case multiple column separators are passed, set `multiple_col_seps` to be True.
+        multiple_col_seps = True if isinstance(col_sep, List) else False
+
+        # Turn `text` into multiple rows by splitting with `row_sep`.
         rows = text.split(row_sep)
         rows = self.remove_empty(rows)
         col_size = len(col_nm)
         
+        # Do the column-splitting.
         records = []
         for row in rows:
-            col = self.splitter(col_size, row, sep=col_sep)
+            # If multiple column separators are passed,
+            # a separator splitting a row the most will be chosen through `best_sep_idx`.
+            if multiple_col_seps:
+                best_sep_idx = np.argmax([len(self.splitter(n_splits=col_size, text=row, sep=sep)) for sep in col_sep])
+                best_col_sep = col_sep[best_sep_idx]
+            else:
+                best_col_sep = col_sep
+                
+            col = self.splitter(col_size, row, sep=best_col_sep)
             records.append(col)
 
         return pd.DataFrame(records, columns=col_nm) if ret_type == 'df' else pd.DataFrame(records, columns=col_nm).to_dict()

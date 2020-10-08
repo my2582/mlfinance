@@ -320,6 +320,16 @@ def iterable(obj):
         return True
 
 
+def tokenize(s):
+    '''Splits a string into tokens'''
+    WHITESPACE = re.compile('\s+')
+    return WHITESPACE.split(s)
+
+
+def untokenize(s):
+    '''Joins tokens into a string'''
+    return ' '.join(s)
+
 class SMWrapper(BaseEstimator, RegressorMixin):
     """
     A universal sklearn-style wrapper for statsmodels regressors 
