@@ -10,8 +10,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-import bamboolib
+from sklearn.covariance import EmpiricalCovariance, MinCovDet
 
+from fredapi import Fred
+fred = Fred(api_key='98d7e668ce51c2997660ab73367c689a')
+
+from utils.misc import get_fred_asof_history, get_fred_asof
 
 # # 0. Theoretical background
 
@@ -830,7 +834,7 @@ bf.loc[fxcs_oldest_idx, 'FXCS'] = df.loc[fxcs_oldest_idx, 'FXCS_oldest']
 # In[76]:
 
 
-ax = bf.FXCS.loc[np.logical_and(bf.index.year>=1913, bf.index.year<=1945)].plot(figsize=(30,5))
+# ax = bf.FXCS.loc[np.logical_and(bf.index.year>=1913, bf.index.year<=1945)].plot(figsize=(30,5))
 period_used_min = min(df.loc[df.index.year==1921].index).to_timestamp()
 # ax.axvspan(period_used_min, max(df.index), alpha=0.1, color='g')
 
@@ -851,7 +855,7 @@ period_used_min = min(df.loc[df.index.year==1921].index).to_timestamp()
 # In[78]:
 
 
-ax = df.loc[np.logical_and(df.index.year>=1919, df.index.year<=1921), ['USDCAD_rate_gfd', 'USDAUD_rate_gfd', 'USDCHF_rate_gfd']].plot(secondary_y=['USDCHF_rate_gfd'])
+# ax = df.loc[np.logical_and(df.index.year>=1919, df.index.year<=1921), ['USDCAD_rate_gfd', 'USDAUD_rate_gfd', 'USDCHF_rate_gfd']].plot(secondary_y=['USDCHF_rate_gfd'])
 period_used_min = min(df.loc[df.index.year==1921].index).to_timestamp()
 # ax.axvspan(period_used_min, max(df.index), alpha=0.1, color='g')
 
@@ -913,10 +917,10 @@ period_used_min = min(df.loc[df.index.year==1921].index).to_timestamp()
 
 # In[85]:
 
+event_dt = df.USDAUD_rate_gfd.loc['1966'].index[5]
 
-usdaud_logret = np.log(df.USDAUD_rate_gfd.loc['1966-02']/(2*df.USDAUD_rate_gfd.loc['1966-01']))
-bf.FXCS.loc['1966-02'] = np.log(df.USDCAD_rate_gfd.loc['1966-02']/df.USDCAD_rate_gfd.loc['1966-01']) + usdaud_logret - np.log(df.USDCHF_rate_gfd.loc['1966-02']/df.USDCHF_rate_gfd.loc['1966-01'])
-
+usdaud_logret = np.log(df.USDAUD_rate_gfd[event_dt+1]/(2*df.USDAUD_rate_gfd[event_dt]))
+bf.FXCS[event_dt+1] = np.log(df.USDCAD_rate_gfd[event_dt+1]/df.USDCAD_rate_gfd[event_dt]) + usdaud_logret - np.log(df.USDCHF_rate_gfd[event_dt+1]/df.USDCHF_rate_gfd[event_dt])
 
 # In[86]:
 
@@ -1066,26 +1070,66 @@ print(bf.tail())
 
 
 dataset_filename = '../data/processed/base_assets_' + _freq
-bf.to_csv(dataset_filename + '.log')
+bf.to_csv(dataset_filename + '.csv')
 bf.to_pickle(dataset_filename + '.pkl')
 
 print('Base asset prices are saved to {}.'.format(dataset_filename))
 
 
 price_filename = '../data/processed/asset_prices_' + _freq
-df.to_csv(price_filename + '.log')
+df.to_csv(price_filename + '.csv')
 df.to_pickle(price_filename + '.pkl')
 print('Asset prices are saved to {}.'.format(price_filename))
 
 
-###############################################
-## Now, we are generating three macro factors:
-##  1. Economic Growth (GRTH)
-##  2. Inflation
-##  3. Uncertainty
-###############################################
+## Uncertainty
+### - `UNCR` (Uncertainty): 0.5$\cdot$Chicago Fed's National Financial Conditions Index `nfci`  + 0.5$\cdot$Mahalanobis distances of all the base asset returns `d_brt`
+### - Frequency: Weekly
 
-print('Now we are generating three macro factors: Economic Growth (GRTH), Inflation (INFL), Uncertainty (UNCR)')
+# Get NFCI (Chicago Fed's National Financial Conditions Index )
+print('Fetching Chicago Fed\'s National Financial Conditions Index from FRED...')
+nfci  = fred.get_series_latest_release('NFCI')
+nfci.index = nfci.index.to_period('W-FRI')
+nfci.name='nfci'
 
+# In calculating base assets' Mahalanobis distances, we take pre-1956 data as in-sample data, implying that we have a forward-looking bias in that period.
+X = bf[:'1955']
+bf_emp_cov = EmpiricalCovariance().fit(X)
 
+# Calculate Mahalanobis distances.
+dt_range = bf.index
+d_brt = {}
 
+print('Calculating Mahalanobis distances...')
+for dt in tqdm(dt_range):
+    if dt.strftime('%Y-%m') < '1956':
+        # For pre-1956, we just take one observation at a time in a sequential order and use a pre-computed covariance matrix over the in-sample period.
+        obs = X.loc[dt]
+    else:
+        # For 1956 or post periods, we increase our dataset by one week at each iteration.
+        X = bf.loc[:dt]
+        obs = X.iloc[-1]
+        X = X.loc[X.iloc[:-1].index]    # we exclude data on the last day, on which `obs` data occurs.
+        bf_emp_cov = EmpiricalCovariance().fit(X)
+        
+    d_brt[dt] = bf_emp_cov.mahalanobis(obs.values.reshape(1,-1))[0]
+
+d_brt = pd.DataFrame.from_dict(d_brt, orient='index', columns=['d_brt'])
+uncr = pd.merge(d_brt, nfci, how='left', left_index=True, right_index=True)
+uncr['d_brt'] = (uncr.d_brt - uncr.d_brt[:-1].mean())/(uncr.d_brt[:-1].std())
+
+# Imputation
+# Since we take a simple average of `nfci` and `d_brt` and `nfci` has missing values for pre-1973 periods, we impute `nfci` with `d_brt`.
+
+uncr.nfci.fillna(uncr.d_brt, inplace=True)
+uncr['Uncertainty'] = 0.5*uncr.nfci + 0.5*uncr.d_brt
+uncr.index.name='date'
+
+print('The last few data points of Uncertainty factor generated:\n', uncr['Uncertainty'].tail(5))
+
+uncr.set_index(uncr.index.to_timestamp(how='E').strftime('%Y-%m-%d'), inplace=True)
+
+uncr_filename = '../data/processed/uncertainty'
+uncr['Uncertainty'].to_csv(uncr_filename + '.csv')
+uncr['Uncertainty'].to_pickle(uncr_filename + '.pkl')
+print('Uncertainty factors are saved to {}.'.format(uncr_filename))

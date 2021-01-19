@@ -9,8 +9,6 @@ from itertools import chain
 
 import copy
 
-init_notebook_mode()
-
 def plotly_fig2json(fig, fpath=None):
     """
     Serialize a plotly figure object to JSON so it can be persisted to disk.
@@ -90,7 +88,8 @@ def plotly_multi_shades(fig, x0, x1, color='gray'):
 
     # replace shape in fig with multiple new shapes
     fig['layout']['shapes']= tuple(shp_lst)
-    return(fig)
+
+    return fig
 
 def plotly_multi_shades(fig, x0, x1, colors=['gray'], alpha=[0.2]):
     """ Adds shaded areas for specified dates in a plotly plot.

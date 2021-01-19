@@ -3,8 +3,10 @@ import numpy as np
 from pandas.tseries.offsets import MonthEnd
 
 import statsmodels.api as sm
-from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from sklearn.preprocessing import StandardScaler
+from sklearn.utils import check_array, check_X_y
+from sklearn.utils.validation import FLOAT_DTYPES, check_is_fitted
 
 from dateutil.relativedelta import *
 
@@ -330,22 +332,48 @@ def untokenize(s):
     '''Joins tokens into a string'''
     return ' '.join(s)
 
+
+def get_nonexistant_path(fname_path):
+    '''
+    Get the path to a filename which does not exist by incrementing path.
+    Examples
+    --------
+    >>> get_nonexistant_path('/etc/issue')
+    '/etc/issue-1'
+    >>> get_nonexistant_path('whatever/1337bla.py')
+    'whatever/1337bla.py'
+
+    Reference: https://izziswift.com/create-a-incrementing-filename-in-python/
+    '''
+    if not os.path.exists(fname_path):
+        return fname_path
+    filename, file_extension = os.path.splitext(fname_path)
+    i = 1
+    new_fname = "{}-{}{}".format(filename, i, file_extension)
+    while os.path.exists(new_fname):
+        i += 1
+        new_fname = "{}-{:02d}{}".format(filename, i, file_extension)
+    
+    return new_fname
+
 class SMWrapper(BaseEstimator, RegressorMixin):
     """
+    A square-root lasso warpper.
     A universal sklearn-style wrapper for statsmodels regressors 
     
     Source: https://stackoverflow.com/questions/41045752/using-statsmodel-estimations-with-scikit-learn-cross-validation-is-it-possible
     """
-    def __init__(self, model_class, lasso_t, fit_intercept=True):
+    def __init__(self, model_class, lasso_t, fit_intercept=True, refit=True):
         self.model_class = model_class
         self.fit_intercept = fit_intercept
         self.lasso_t = lasso_t
+        self.refit = refit
         
     def fit(self, X, y):
         if self.fit_intercept:
-            X = sm.add_constant(X)
+            X = sm.add_constant(X, has_constant='add')
         self.model_ = self.model_class(y, X)
-        self.results_ = self.model_.fit_regularized(method='sqrt_lasso', refit=True, zero_tol=self.lasso_t)
+        self.results_ = self.model_.fit_regularized(method='sqrt_lasso', refit=self.refit, zero_tol=self.lasso_t)
         
     def predict(self, X):
         if self.fit_intercept:
@@ -400,19 +428,78 @@ class BlockingTimeSeriesSplit():
             yield indices[start: mid], indices[mid + margin: stop]
 
 
-class StandardScalerClipper(StandardScaler):
+class StandardScalerClipper(BaseEstimator, TransformerMixin):
     '''
     Applies StandardScaler() and then clips the scaled results outside an interval [`zmin`, `zmax`] to the interval edges.
-    A default interval is [-3, 3]
+    That is, we consider all values ouside any edge as either -3 or 3 if a given interval is [-3, 3]
+
+    Reference: https://ploomber.io/posts/sklearn-custom/
     '''
-    def __init__(self, zmin=-3, zmax=3):
-        super(StandardScalerClipper, self).__init__(self)
+    def __init__(self, zmin=-3, zmax=3, scaler_class=StandardScaler, copy=True, with_mean=True, with_std=True, **kwargs):
         self.zmin=zmin
         self.zmax=zmax
-    
-    def transform(self, x):
+        self.scaler_class=scaler_class
+        self.copy=copy
+        self.with_mean=with_mean
+        self.with_std=with_std
+        
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        
+        self._param_names = ['scaler_class'] + list(kwargs.keys())
+
+    def fit(self, X, y=None, **kwargs):
+        '''
+        An abstract method that is used to fit the step and to learn by examples
+        '''
+        X = check_array(X, copy=self.copy, estimator=self, dtype=FLOAT_DTYPES)
+        scaler_kwargs = self.get_params()
+        del scaler_kwargs['scaler_class']
+
+        self.model_ = self.scaler_class(**scaler_kwargs)
+        self.model_.fit(X, y, **kwargs)
+
+        # self.scaler = StandardScaler(copy=self.copy, with_mean=self.with_mean, with_std=self.with_std)
+        return self         # fit must return self.
+
+
+    def transform(self, X):
         '''
         We simply call the same `transform` method first.
         Then we do clipping after that.
         '''
+
+        check_is_fitted(self)
+        X = check_array(X, copy=self.copy, dtype=FLOAT_DTYPES)
+        z = self.model_.transform(X=X)
+        
+        return np.clip(z, a_min=self.zmin, a_max=self.zmax)
+
+    def get_params(self, deep=True):
+        '''
+        Estimators have get_params and set_params functions.
+        The get_params function takes no arguments and returns a dict of the __init__ parameters of the estimator, together with their values.
+        It must take one keyword argument, deep, which receives a boolean value that determines whether the method should return the parameters of sub-estimators (for most estimators, this can be ignored). The default value for deep should be true.
+        
+        Reference: https://ploomber.io/posts/sklearn-custom/
+        '''
+
+        return {param: getattr(self, param)
+                    for param in self._param_names}
+    
+    def set_params(self, **parameters):
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+
+        return self
+
+    def __getattr__(self, key):
+        if key != 'model_':
+            if hasattr(self, 'model_'):
+                return getattr(self.model_, key)
+            else:
+                return getattr(self.scaler_class, key)
+        else:
+            raise AttributeError(
+                "'{}' object has no attribute 'model_'".format(type(self).__name__))
 
