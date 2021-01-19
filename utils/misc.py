@@ -404,8 +404,6 @@ class StandardScalerClipper(StandardScaler):
     '''
     Applies StandardScaler() and then clips the scaled results outside an interval [`zmin`, `zmax`] to the interval edges.
     A default interval is [-3, 3]
-    
-    Source: http://flennerhag.com/2017-01-08-Recursive-Override/
     '''
     def __init__(self, zmin=-3, zmax=3):
         super(StandardScalerClipper, self).__init__(self)
@@ -417,7 +415,4 @@ class StandardScalerClipper(StandardScaler):
         We simply call the same `transform` method first.
         Then we do clipping after that.
         '''
-        z = super(StandardScalerClipper, self).transform(x)
-        
-        return np.clip(z, self.zmin, self.zmax)
 
